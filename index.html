@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQI Visualizer - Ultimate Edition</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* THEME VARIABLES (Dark & Light Mode) */
+        :root {
+            --bg-main: #050505;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --glass-hover: rgba(255, 255, 255, 0.1);
+            --panel-bg: rgba(10, 10, 10, 0.85);
+            --nav-bg: rgba(10, 10, 10, 0.95);
+            --input-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        body.light-theme {
+            --bg-main: #e2e8f0;
+            --text-main: #111827;
+            --text-muted: #4b5563;
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --glass-hover: rgba(255, 255, 255, 0.9);
+            --panel-bg: rgba(240, 245, 250, 0.9);
+            --nav-bg: rgba(240, 245, 250, 0.95);
+            --input-bg: rgba(0, 0, 0, 0.05);
+        }
+
+        * { box-sizing: border-box; font-family: 'Space Grotesk', sans-serif; margin: 0; padding: 0; }
+        body { min-height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; transition: background-color 0.5s ease, color 0.5s ease; }
+        #particles-js { position: absolute; width: 100vw; height: 100vh; z-index: 0; }
+
+        /* CINEMATIC BOOT LOADER */
+        #bootLoader { position: fixed; inset: 0; background: #050505; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 1s ease; }
+        #loader-particles { position: absolute; inset: 0; z-index: 1; transition: opacity 1.5s ease; }
+        .loader-content { z-index: 2; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .loader-text { font-size: 5rem; font-weight: 700; color: #fff; text-shadow: 0 0 30px #00ff99, 0 0 60px #00ff99; opacity: 0; transform: scale(0.5); transition: all 1.5s cubic-bezier(0.16, 1, 0.3, 1); letter-spacing: -2px; }
+        .loader-quote { font-size: 1.5rem; color: #aaa; margin-top: 20px; font-style: italic; opacity: 0; transition: opacity 1s ease 0.5s; letter-spacing: 2px; }
+
+        .fullscreen-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; padding: 30px 5vw; z-index: 1; transition: box-shadow 0.8s ease; box-shadow: inset 0 0 150px rgba(255, 255, 255, 0.05); }
+        .content-wrapper { display: flex; flex-direction: column; flex-grow: 1; transition: filter 0.6s ease, opacity 0.6s ease; z-index: 2; }
+        .content-wrapper.blurred { filter: blur(15px); opacity: 0.3; pointer-events: none; }
+
+        /* Top Bar & UI/UX Fixed Menu Button */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+        .left-controls { display: flex; align-items: center; gap: 20px; } 
+        
+        .brand-bar-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 12px; outline: none; z-index: 100; }
+        .brand-bar-wrapper { display: flex; align-items: center; justify-content: center; width: 20px; height: 50px; }
+        .brand-bar { width: 8px; height: 42px; background-color: #00ff99; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 255, 153, 0.6); transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.5s ease, box-shadow 0.5s ease; }
+        .menu-label { font-size: 1rem; font-weight: 700; letter-spacing: 4px; color: var(--text-muted); transition: color 0.3s ease; text-transform: uppercase; }
+        
+        .brand-bar-btn.open .brand-bar { transform: rotate(90deg); }
+        .brand-bar-btn:hover .brand-bar { transform: scale(1.1); }
+        .brand-bar-btn.open:hover .brand-bar { transform: rotate(90deg) scale(1.1); }
+        .brand-bar-btn:hover .menu-label { color: var(--text-main); }
+        
+        .title-group h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -1px; line-height: 1; margin-bottom: 2px; color: var(--text-main); }
+        .title-group p { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 3px; }
+
+        /* Search Bar & GPS */
+        .search-container { position: relative; display: flex; align-items: center; gap: 10px; }
+        .search-container input { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 15px 45px 15px 25px; border-radius: 30px; font-size: 1rem; outline: none; width: 280px; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .search-container input:focus { background: var(--glass-hover); border-color: var(--text-main); width: 320px; }
+        .geo-btn { position: absolute; right: 15px; background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; }
+        .geo-btn:hover { transform: scale(1.2); }
+        #errorMsg { position: absolute; top: 60px; right: 20px; color: #ff3366; font-size: 0.9rem; display: none; }
+
+        /* Side Navigation Overlay */
+        .side-nav { position: fixed; top: 0; left: -400px; width: 350px; height: 100vh; background: var(--nav-bg); backdrop-filter: blur(30px); border-right: 1px solid var(--glass-border); z-index: 50; transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1); padding: 100px 40px; display: flex; flex-direction: column; gap: 20px; box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+        .side-nav.open { left: 0; }
+        .nav-btn { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 20px; text-align: left; font-size: 1.2rem; border-radius: 15px; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px; }
+        .nav-btn:hover { background: var(--glass-bg); border-color: var(--text-main); padding-left: 30px; }
+
+        /* Hero Dashboard */
+        .hero-data { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .location-name { font-size: 2.5rem; color: var(--text-muted); margin-bottom: 10px; letter-spacing: 2px; }
+        .aqi-value { font-size: 11rem; font-weight: 700; line-height: 1; margin-bottom: 10px; text-shadow: 0 0 40px currentColor; transition: color 0.5s ease; }
+        .aqi-status { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 5px; font-weight: 600; margin-bottom: 40px; transition: color 0.5s ease; }
+        .button-group { display: flex; gap: 20px; }
+        .btn-glow { background: var(--glass-bg); color: var(--text-main); border: 1px solid var(--glass-border); padding: 18px 40px; font-size: 1rem; border-radius: 40px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .btn-glow:hover { background: var(--glass-hover); border-color: var(--text-main); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .btn-glow:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        /* Footer */
+        .footer { position: absolute; bottom: 15px; left: 0; width: 100%; text-align: center; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; z-index: 2; }
+
+        /* Shared Modal Styles */
+        .modal { position: absolute; bottom: -100%; left: 0; width: 100vw; height: 85vh; background: var(--panel-bg); backdrop-filter: blur(40px); border-top: 1px solid var(--glass-border); border-radius: 40px 40px 0 0; padding: 40px 10vw; transition: bottom 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 10; display: flex; flex-direction: column; }
+        .modal.open { bottom: 0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0; }
+        .header-title-wrapper h2 { font-size: 2rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-main); }
+        .header-stats { opacity: 0; transform: translateX(-20px); transition: all 0.5s ease; font-size: 1.2rem; color: var(--text-muted); letter-spacing: 2px; display: flex; align-items: center; gap: 15px; }
+        .modal.open .header-stats { opacity: 1; transform: translateX(0); transition-delay: 0.4s; }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 3rem; cursor: pointer; transition: all 0.2s; line-height: 1; }
+        .close-btn:hover { transform: scale(1.1) rotate(90deg); color: var(--text-main); }
+
+        .modal-content { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; overflow-y: auto; padding-right: 10px; align-content: start;}
+        .modal-content::-webkit-scrollbar { width: 6px; }
+        .modal-content::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        .glass-panel { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; }
+        .full-width { grid-column: 1 / -1; }
+        .glass-panel h3 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .chart-wrapper { position: relative; height: 160px; width: 100%; }
+
+        .data-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; transition: border-color 0.3s ease; }
+        .data-card:hover { border-color: var(--glass-hover); }
+        .d-symbol { font-weight: 700; color: var(--text-main); font-size: 1.2rem; margin-bottom: 2px; }
+        .d-name { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .d-val { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+        .d-unit { font-size: 0.7rem; color: var(--text-muted); }
+
+        /* Settings & Connect UI */
+        .settings-grid { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .theme-btn { flex: 1; min-width: 120px; }
+        
+        .social-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 15px; padding: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 15px; transition: all 0.3s ease; margin-bottom: 15px; color: var(--text-main); font-size: 1.3rem; font-weight: 600; text-align: center; }
+        .social-card:hover { background: var(--glass-hover); border-color: #E1306C; color: #E1306C; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(225, 48, 108, 0.2); }
+        .social-icon { width: 40px; height: 40px; fill: currentColor; }
+
+        /* Avatars */
+        .creators-grid { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; flex-wrap: wrap; }
+        .creator-card { text-align: center; display: flex; flex-direction: column; align-items: center; background: var(--glass-bg); padding: 20px; border-radius: 20px; border: 1px solid var(--glass-border); width: 280px; }
+        .avatar-container { width: 120px; height: 120px; border-radius: 50%; padding: 4px; background: linear-gradient(45deg, #00ff99, #00b3ff); margin-bottom: 15px; animation: floatAvatar 4s ease-in-out infinite; }
+        .avatar-container img { width: 100%; height: 100%; border-radius: 50%; background-color: var(--bg-main); border: 3px solid var(--bg-main); object-fit: cover; }
+        @keyframes floatAvatar { 0% { transform: translateY(0px); box-shadow: 0 10px 25px rgba(0, 255, 153, 0.3); } 50% { transform: translateY(-10px); box-shadow: 0 20px 35px rgba(0, 255, 153, 0.5); } 100% { transform: translateY(0px); box-shadow: 0 10px 25px rgba(0, 255, 153, 0.3); } }
+        
+        .creator-name { font-size: 1.3rem; font-weight: 700; margin-bottom: 5px; color: var(--text-main); }
+        .creator-role { font-size: 0.85rem; color: #00ff99; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+        .creator-id { font-size: 0.85rem; color: var(--text-muted); font-family: monospace; }
+        
+        /* Report HTML Elements */
+        .report-content { max-height: 480px; overflow-y: auto; padding-right: 20px; color: var(--text-muted); line-height: 1.8; font-size: 1.05rem; }
+        .report-content h4 { color: var(--text-main); font-size: 1.4rem; margin-top: 40px; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; }
+        .report-img { width: 100%; height: auto; max-height: 350px; object-fit: cover; border-radius: 15px; border: 1px solid var(--glass-border); margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .media-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 15px; border: 1px solid var(--glass-border); margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .media-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        .caption { display: block; text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 30px; font-style: italic; }
+
+        /* Timeline Modal Specifics */
+        #timelineModal { height: 90vh; border-radius: 40px 40px 0 0; }
+        .timeline-container { display: flex; width: 100%; height: 100%; gap: 40px; }
+        .roadmap-tree { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; border-right: 1px solid var(--glass-border); padding-right: 40px; }
+        .node { background: var(--glass-bg); border: 2px solid var(--glass-border); padding: 15px 30px; border-radius: 30px; color: var(--text-main); cursor: pointer; font-size: 1.2rem; font-weight: 600; transition: all 0.3s ease; width: 250px; text-align: center; }
+        .node:hover, .node.active { background: var(--glass-hover); border-color: var(--text-main); transform: scale(1.05); box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+        .connector { width: 4px; height: 50px; background: var(--glass-border); }
+        .fork { display: flex; gap: 20px; }
+        .node-bad { border-color: #ff3366; } .node-bad:hover, .node-bad.active { background: rgba(255,51,102,0.2); border-color: #ff3366; box-shadow: 0 0 30px rgba(255,51,102,0.4); }
+        .node-good { border-color: #00ff99; } .node-good:hover, .node-good.active { background: rgba(0,255,153,0.2); border-color: #00ff99; box-shadow: 0 0 30px rgba(0,255,153,0.4); }
+        .story-panel { flex: 2; display: flex; flex-direction: column; gap: 20px; justify-content: center; }
+        .story-title { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; }
+        .story-text { font-size: 1.2rem; line-height: 1.8; color: var(--text-muted); margin-bottom: 30px; }
+        .story-chart-wrapper { height: 300px; width: 100%; background: var(--input-bg); padding: 20px; border-radius: 20px; border: 1px solid var(--glass-border); }
+    </style>
+</head>
+<body>
+
+    <div id="bootLoader">
+        <div id="loader-particles"></div>
+        <div class="loader-content">
+            <div class="loader-text" id="loaderText">AQI Visualizer</div>
+            <div class="loader-quote" id="loaderQuote">"Go green, breathe clean"</div>
+        </div>
+    </div>
+
+    <div id="particles-js"></div>
+
+    <div class="side-nav" id="sideNav">
+        <button class="nav-btn" onclick="openHome()">🏠 Home</button>
+        <button class="nav-btn" onclick="openTimeline()">⏳ Roadmap</button>
+        <button class="nav-btn" onclick="openModal('aboutModal')">👥 About & Report</button>
+        <button class="nav-btn" onclick="openModal('settingsModal')">⚙️ Settings</button>
+        <button class="nav-btn" onclick="openModal('connectModal')">🔗 Connect Us</button>
+    </div>
+
+    <div class="fullscreen-container" id="appBox">
+        <div class="content-wrapper" id="mainContent">
+            <div class="top-bar">
+                <div class="left-controls">
+                    
+                    <button class="brand-bar-btn" id="menuToggleBtn" onclick="toggleMenu()" title="Open Menu">
+                        <div class="brand-bar-wrapper">
+                            <div class="brand-bar" id="dynamicBrandBar"></div>
+                        </div>
+                        <span class="menu-label">MENU</span>
+                    </button>
+                    
+                    <div class="title-group">
+                        <h1>Air Quality</h1>
+                        <p>Live API Telemetry</p>
+                    </div>
+                </div>
+                <div class="search-container">
+                    <input type="text" id="citySearch" placeholder="Search city or place...">
+                    <button class="geo-btn" id="geoBtn" title="Use My Location">🎯</button>
+                    <div id="errorMsg">Location not found.</div>
+                </div>
+            </div>
+
+            <div class="hero-data">
+                <div class="location-name" id="displayLocation">Initializing...</div>
+                <div class="aqi-value" id="displayAqi">--</div>
+                <div class="aqi-status" id="displayStatus">Awaiting Telemetry</div>
+                
+                <div class="button-group">
+                    <button class="btn-glow" id="diagnosticsBtn" disabled>Diagnostics</button>
+                    <button class="btn-glow btn-primary" id="weatherBtn" disabled>Forecast Hub</button>
+                </div>
+            </div>
+            
+            <div class="footer">
+                &copy; All rights reserved 2026 | CA1 Project
+            </div>
+        </div>
+        
+        <div class="modal" id="diagnosticsModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>Diagnostic Overview</h2><div class="header-stats" id="diagHeaderStats"></div></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="glass-panel full-width"><h3>Comprehensive Pollutant Analysis</h3><div class="data-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px;" id="telemetryGrid"></div></div>
+                <div class="glass-panel"><h3>Primary Pollutants</h3><div class="chart-wrapper"><canvas id="barChart"></canvas></div></div>
+                <div class="glass-panel"><h3>Source Origins (Est.)</h3><div class="chart-wrapper"><canvas id="pieChart"></canvas></div></div>
+            </div>
+        </div>
+
+        <div class="modal" id="weatherModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>Weather & Forecasting</h2><div class="header-stats" id="weatherHeaderStats"></div></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="glass-panel"><h3>Current Weather Context</h3><div class="data-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px;" id="weatherGrid"></div></div>
+                <div class="glass-panel"><h3>Lifestyle & Activity Matrix</h3><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;" id="lifestyleGrid"></div></div>
+                <div class="glass-panel full-width"><h3>72-Hour AQI Predictive Forecast</h3><div class="chart-wrapper" style="height: 200px;"><canvas id="forecastChart"></canvas></div></div>
+            </div>
+        </div>
+
+        <div class="modal" id="settingsModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>Environment Settings</h2></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="glass-panel full-width">
+                    <h3>Theme Controls</h3>
+                    <div class="settings-grid">
+                        <button class="btn-glow theme-btn" onclick="setTheme('day')">☀️ Day Mode</button>
+                        <button class="btn-glow theme-btn" onclick="setTheme('night')">🌙 Night Mode</button>
+                        <button class="btn-glow theme-btn" onclick="setTheme('default')">⏱️ Auto (Real-time)</button>
+                    </div>
+                    <h3 style="margin-top: 20px;">System Controls</h3>
+                    <button class="btn-glow" style="width: fit-content; border-color: #ff3366;" onclick="resetLocation()">🔄 Reset to Initial Data</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="connectModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>Connect With The Team</h2></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="glass-panel full-width" style="display: flex; align-items: center; justify-content: center; padding: 50px;">
+                    
+                    <div class="social-card" style="width: 100%; max-width: 400px; padding: 30px;" onclick="window.open('https://www.instagram.com/reel/DWT7WWdEih2/?igsh=amQwdXI0NWJnbjkz', '_blank')">
+                        <svg class="social-icon" style="margin-right: 10px;" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.07zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        Watch Our Project Video on Instagram
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="aboutModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>About the Creators & Project CA1</h2></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            
+            <div class="modal-content">
+                <div class="glass-panel">
+                    <h3>Engineering Team</h3>
+                    <div class="creators-grid">
+                        <div class="creator-card">
+                            <div class="avatar-container"><img src="rudra.avif" alt="Rudra"></div>
+                            <h3 class="creator-name">Rudra Narayan Mishra</h3>
+                            <span class="creator-role">Lead Developer</span>
+                            <span class="creator-id">ID: 12515636</span>
+                        </div>
+                        <div class="creator-card">
+                            <div class="avatar-container"><img src="tashbiha.jpg" alt="Tashbiha"></div>
+                            <h3 class="creator-name">Tashbiha</h3>
+                            <span class="creator-role">UI/UX & Data Engineer</span>
+                            <span class="creator-id">ID: 12517722</span>
+                        </div>
+                        <div class="creator-card">
+                            <div class="avatar-container"><img src="amul.avif" alt="Amul"></div>
+                            <h3 class="creator-name">Amul Kumar Yadav</h3>
+                            <span class="creator-role">Core Logic Integrator</span>
+                            <span class="creator-id">ID: 12511174</span>
+                        </div>
+                    </div>
+                    <div style="text-align: center; color: var(--text-muted); font-size: 1rem; line-height: 1.6; margin-top: 10px;">
+                        <strong>School of Computing and AI</strong><br>Lovely Professional University, Punjab, India<br>Course Code: CHE110
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+                    <h3>CA1 Assignment Documentation</h3>
+                    <div class="report-content">
+                        <h4>1. Introduction & Problem Statement</h4>
+                        <p>Rapid urbanization and industrial expansion have positioned air pollution as one of the most severe public health crises of the 21st century. The core problem is an information gap: citizens need to know what scientific numbers mean for their daily lives. This project bridges that gap by engineering a real-time AQI Visualization Command Center.</p>
+                        
+                        <h4>2. Review of Existing Literature</h4>
+                        <p>Historically, access was limited to static daily reports. This project builds upon modern UI/UX paradigms, utilizing real-time API fetching to eliminate latency and implementing dynamic color theory to instantly communicate threat levels without requiring the user to interpret the underlying chemistry.</p>
+                        
+                        <h4>3. Description of the Product</h4>
+                        <ul><li><strong>Live Telemetry Hub:</strong> Color-coded central dashboard.</li><li><strong>Comprehensive Diagnostics:</strong> A 10-point grid analyzing primary pollutants.</li><li><strong>Temporal Roadmap:</strong> An interactive historical trajectory timeline.</li><li><strong>Lifestyle Matrix:</strong> Algorithmic behavioral advice.</li></ul>
+                        
+                        <h4>4. Real-Time Photographs & Danger Records</h4>
+                        <img class="report-img" src="https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=1200&q=80" alt="Smog">
+                        <span class="caption">Fig 1. High PM2.5 concentration drastically reducing visibility.</span>
+                        
+                        <img class="report-img" src="https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=1200&q=80" alt="Industrial">
+                        <span class="caption">Fig 2. Industrial emissions contributing to localized NO2 spikes.</span>
+
+                        <div class="media-container">
+                            <iframe src="https://www.youtube.com/embed/e6rglsLy1Ys" title="YouTube video player" allowfullscreen></iframe>
+                        </div>
+                        <span class="caption">Video 1: The Global Impact of Air Pollution (Nat Geo 101)</span>
+
+                        <h4>5. Conclusion</h4>
+                        <p>The Tool successfully demonstrates how complex datasets can be simplified into an engaging interface, empowering individuals to make immediate health decisions.</p>
+                        
+                        <h4>6. Bibliography</h4>
+                        <ul>
+                            <li>Open-Meteo API Documentation (Geocoding & Air Quality).</li>
+                            <li>WHO Global Air Quality Guidelines.</li>
+                            <li>Chart.js Data visualization algorithms.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="timelineModal">
+            <div class="modal-header">
+                <div class="header-title-wrapper"><h2>Temporal Chronicle: 2011 - 2041</h2></div>
+                <button class="close-btn" onclick="closeModals()">&times;</button>
+            </div>
+            <div class="timeline-container">
+                <div class="roadmap-tree">
+                    <div class="node" id="node-2011" onclick="loadStory('2011')">2011: The Past</div>
+                    <div class="connector"></div>
+                    <div class="node active" id="node-2026" onclick="loadStory('2026')">2026: The Present</div>
+                    <div class="connector"></div>
+                    <div class="fork">
+                        <div class="node node-bad" id="node-2041b" onclick="loadStory('2041b')">2041: Inaction</div>
+                        <div class="node node-good" id="node-2041g" onclick="loadStory('2041g')">2041: Action</div>
+                    </div>
+                </div>
+                <div class="story-panel">
+                    <div id="storyContent">
+                        <h1 class="story-title" id="sTitle">2026: The Crisis Point</h1>
+                        <p class="story-text" id="sText">Select a node on the timeline to explore.</p>
+                    </div>
+                    <div class="story-chart-wrapper"><canvas id="timelineChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // BOOT LOADER ANIMATION SEQUENCE
+        document.addEventListener("DOMContentLoaded", () => {
+            particlesJS('loader-particles', { particles: { number: { value: 120 }, color: { value: "#00ff99" }, shape: { type: "circle" }, opacity: { value: 0.8 }, size: { value: 3 }, line_linked: { enable: true, distance: 120, color: "#00ff99", opacity: 0.6, width: 2 }, move: { enable: true, speed: 2 } }, interactivity: { detect_on: "canvas", events: { onhover: { enable: false } } }, retina_detect: true });
+            
+            setTimeout(() => { 
+                document.getElementById('loader-particles').style.opacity = '0';
+                document.getElementById('loaderText').style.opacity = '1'; 
+                document.getElementById('loaderText').style.transform = 'scale(1)'; 
+            }, 1500);
+            
+            setTimeout(() => { document.getElementById('loaderQuote').style.opacity = '1'; }, 2800);
+            
+            setTimeout(() => { 
+                document.getElementById('bootLoader').style.opacity = '0'; 
+                setTimeout(() => { document.getElementById('bootLoader').remove(); }, 1000);
+            }, 4500);
+        });
+
+        // MAIN BACKGROUND PARTICLES
+        particlesJS('particles-js', { particles: { number: { value: 60 }, color: { value: "#ffffff" }, shape: { type: "circle" }, opacity: { value: 0.2 }, size: { value: 2 }, line_linked: { enable: true, distance: 150, color: "#ffffff", opacity: 0.1, width: 1 }, move: { enable: true, speed: 1 } }, interactivity: { detect_on: "canvas", events: { onhover: { enable: true, mode: "grab" } }, modes: { grab: { distance: 200, line_linked: { opacity: 0.3 } } } }, retina_detect: true });
+
+        let activeCityData = null; 
+        Chart.defaults.color = '#aaaaaa'; Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+
+        // THEME ENGINE
+        function setTheme(mode) {
+            if (mode === 'day') { document.body.classList.add('light-theme'); }
+            else if (mode === 'night') { document.body.classList.remove('light-theme'); }
+            else {
+                const hour = new Date().getHours();
+                if (hour >= 6 && hour < 18) document.body.classList.add('light-theme');
+                else document.body.classList.remove('light-theme');
+            }
+        }
+        setTheme('default'); 
+
+        // NAVIGATION & MODALS
+        let menuOpen = false;
+        function toggleMenu() {
+            menuOpen = !menuOpen;
+            const btn = document.getElementById('menuToggleBtn');
+            if(menuOpen) {
+                document.getElementById('sideNav').classList.add('open');
+                document.getElementById('mainContent').classList.add('blurred');
+                btn.classList.add('open'); 
+            } else { closeMenu(); }
+        }
+        function closeMenu() {
+            menuOpen = false;
+            document.getElementById('sideNav').classList.remove('open');
+            document.getElementById('menuToggleBtn').classList.remove('open');
+            if(!document.querySelector('.modal.open')) document.getElementById('mainContent').classList.remove('blurred');
+        }
+        function openHome() { closeModals(); closeMenu(); }
+        
+        function openTimeline() {
+            closeModals(); closeMenu();
+            document.getElementById('timelineModal').classList.add('open');
+            document.getElementById('mainContent').classList.add('blurred');
+            loadStory('2026'); // Ensures roadmap charts render immediately
+        }
+
+        function openModal(modalId) {
+            closeModals(); closeMenu();
+            document.getElementById(modalId).classList.add('open');
+            document.getElementById('mainContent').classList.add('blurred');
+        }
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+            if(!menuOpen) document.getElementById('mainContent').classList.remove('blurred');
+        }
+        
+        function resetLocation() {
+            closeModals();
+            document.getElementById('citySearch').value = ''; 
+            fetchRealTimeData('New Delhi'); 
+        }
+
+        // LOGIC ENGINE
+        function analyzeAQI(aqi) {
+            if (aqi <= 50) return { status: "Optimal 🟢", color: "#00ff99", glow: "rgba(0, 255, 153, 0.15)", sources: [30, 20, 40, 10], life: [{i:'🏃‍♂️', n:'Exercise', s:'Safe'}, {i:'🪟', n:'Ventilation', s:'Yes'}, {i:'😷', n:'Mask', s:'No'}, {i:'🚲', n:'Cycling', s:'Ideal'}] };
+            if (aqi <= 100) return { status: "Moderate 🌫️", color: "#ffcc00", glow: "rgba(255, 204, 0, 0.15)", sources: [45, 25, 20, 10], life: [{i:'🏃‍♂️', n:'Exercise', s:'Fair'}, {i:'🪟', n:'Ventilation', s:'Yes'}, {i:'😷', n:'Mask', s:'Opt'}, {i:'🚲', n:'Cycling', s:'Good'}] };
+            if (aqi <= 150) return { status: "Unhealthy (Sens.) ☣️", color: "#ff9900", glow: "rgba(255, 153, 0, 0.15)", sources: [50, 30, 10, 10], life: [{i:'🏃‍♂️', n:'Exercise', s:'Reduce'}, {i:'🪟', n:'Ventilation', s:'Close'}, {i:'😷', n:'Mask', s:'Advised'}, {i:'🚲', n:'Cycling', s:'Limit'}] };
+            if (aqi <= 200) return { status: "Unhealthy ⚠️", color: "#ff3366", glow: "rgba(255, 51, 102, 0.15)", sources: [60, 25, 10, 5], life: [{i:'🏃‍♂️', n:'Exercise', s:'Avoid'}, {i:'🪟', n:'Ventilation', s:'Closed'}, {i:'😷', n:'Mask', s:'Yes'}, {i:'🚲', n:'Cycling', s:'Danger'}] };
+            return { status: "Hazardous ☠️", color: "#cc0000", glow: "rgba(204, 0, 0, 0.25)", sources: [40, 40, 10, 10], life: [{i:'🏃‍♂️', n:'Exercise', s:'NO', c:'#c00'}, {i:'🪟', n:'Ventilation', s:'NO', c:'#c00'}, {i:'😷', n:'Mask', s:'N95', c:'#c00'}, {i:'🚲', n:'Cycling', s:'NO', c:'#c00'}] };
+        }
+
+        // TIMELINE ROADMAP LOGIC 
+        const storyData = {
+            "2011": { title: "2011: The Ignored Smog", text: "Fifteen years ago, the skies were hazy, but the public vocabulary lacked terms like 'PM2.5' or 'AQI'. Smog was routinely mistaken for natural winter fog. Air purifiers were a luxury item for the wealthy.", color: "#ffcc00", chartData: [95, null, null, null] },
+            "2026": { title: "2026: The Crisis Point", text: "The present day. Telemetry is tracked daily by millions. Air purifiers run 24/7 in homes across major cities. We stand at a critical junction: the policies and actions chosen today will dictate the future.", color: "#ff9900", chartData: [95, 185, null, null] },
+            "2041b": { title: "2041: Ecological Collapse", text: "The result of inaction. The sky is a permanent shade of grey. Unfiltered outdoor exposure is extremely hazardous. Oxygen bars are a booming business, and respiratory diseases dominate.", color: "#ff3366", chartData: [95, 185, 380, null] },
+            "2041g": { title: "2041: The Green Recovery", text: "The result of decisive action. Following the 100% EV transition and strict emission scrubbing mandates, the skies have cleared. Urban centers breathe easily again.", color: "#00ff99", chartData: [95, 185, null, 35] }
+        };
+
+        let timelineChart = null;
+
+        function loadStory(nodeId) {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            document.getElementById(`node-${nodeId}`).classList.add('active');
+
+            const data = storyData[nodeId];
+            document.getElementById('sTitle').innerText = data.title; 
+            document.getElementById('sTitle').style.color = data.color; 
+            document.getElementById('sText').innerText = data.text;
+
+            if(timelineChart) timelineChart.destroy();
+            timelineChart = new Chart(document.getElementById('timelineChart').getContext('2d'), { 
+                type: 'line', 
+                data: { 
+                    labels: ['2011', '2026', '2041 (Inaction)', '2041 (Action)'], 
+                    datasets: [{ label: 'Average PM2.5 (µg/m³)', data: data.chartData, borderColor: data.color, backgroundColor: data.color + '40', borderWidth: 4, pointRadius: 6, pointBackgroundColor: '#fff', tension: 0.3, spanGaps: true }] 
+                }, 
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 450, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } }, animation: { duration: 1000, easing: 'easeOutQuart' } } 
+            });
+        }
+
+        // DATA FETCHING
+        document.getElementById('geoBtn').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async pos => {
+                    const lat = pos.coords.latitude; const lon = pos.coords.longitude;
+                    try {
+                        const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+                        const data = await res.json();
+                        fetchDataByCoords(lat, lon, `${data.city || data.locality || "Your Location"}, ${data.countryCode}`);
+                    } catch (e) { fetchDataByCoords(lat, lon, "Your GPS Location"); }
+                }, () => alert("Location access denied."));
+            }
+        });
+
+        async function fetchRealTimeData(cityName) {
+            document.getElementById('errorMsg').style.display = 'none';
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cityName}&count=1&format=json`);
+                const data = await res.json();
+                if (!data.results) throw new Error("Not found");
+                fetchDataByCoords(data.results[0].latitude, data.results[0].longitude, `${data.results[0].name}, ${data.results[0].country}`);
+            } catch (err) {
+                document.getElementById('errorMsg').style.display = 'block';
+                setTimeout(() => document.getElementById('errorMsg').style.display = 'none', 4000);
+            }
+        }
+
+        document.getElementById('citySearch').addEventListener('keypress', e => {
+            if (e.key === 'Enter' && e.target.value.trim()) {
+                fetchRealTimeData(e.target.value.trim());
+            }
+        });
+
+        async function fetchDataByCoords(lat, lon, locationName) {
+            try {
+                const aqiRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm10,pm2_5,nitrogen_dioxide,sulphur_dioxide,ozone,ammonia,carbon_monoxide&hourly=us_aqi`);
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`);
+                const [aqiData, weatherData] = await Promise.all([aqiRes.json(), weatherRes.json()]);
+
+                const curAqi = aqiData.current; const curWeather = weatherData.current;
+                const analysis = analyzeAQI(curAqi.us_aqi);
+
+                const simNO = curAqi.nitrogen_dioxide * 0.45; const simNOx = curAqi.nitrogen_dioxide + simNO; const simC6H6 = curAqi.us_aqi * 0.03;
+
+                const cIdx = aqiData.hourly.time.findIndex(t => t.startsWith(curAqi.time.substring(0,13)));
+                const fLabels = []; const fData = [];
+                for(let i=0; i<72; i+=6) { 
+                    if(aqiData.hourly.time[cIdx + i]) {
+                        const date = new Date(aqiData.hourly.time[cIdx + i]);
+                        fLabels.push(date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + "\n" + date.toLocaleDateString([], {weekday: 'short'}));
+                        fData.push(aqiData.hourly.us_aqi[cIdx + i]);
+                    }
+                }
+
+                activeCityData = {
+                    name: locationName, aqi: curAqi.us_aqi,
+                    pollutants: [
+                        { sym: 'PM2.5', name: 'Particulate Matter < 2.5µm', val: curAqi.pm2_5, unit: 'µg/m³' }, { sym: 'PM10', name: 'Particulate Matter < 10µm', val: curAqi.pm10, unit: 'µg/m³' },
+                        { sym: 'NO2', name: 'Nitrogen Dioxide', val: curAqi.nitrogen_dioxide, unit: 'µg/m³' }, { sym: 'NO', name: 'Nitric Oxide', val: simNO, unit: 'µg/m³' },
+                        { sym: 'NOx', name: 'Nitrogen Oxides', val: simNOx, unit: 'µg/m³' }, { sym: 'O3', name: 'Ozone', val: curAqi.ozone, unit: 'µg/m³' },
+                        { sym: 'SO2', name: 'Sulfur Dioxide', val: curAqi.sulphur_dioxide, unit: 'µg/m³' }, { sym: 'CO', name: 'Carbon Monoxide', val: curAqi.carbon_monoxide, unit: 'µg/m³' },
+                        { sym: 'NH3', name: 'Ammonia', val: curAqi.ammonia, unit: 'µg/m³' }, { sym: 'C6H6', name: 'Benzene', val: simC6H6, unit: 'µg/m³' }
+                    ],
+                    weather: { temp: curWeather.temperature_2m, hum: curWeather.relative_humidity_2m, wind: curWeather.wind_speed_10m }, forecast: { labels: fLabels, data: fData },
+                    chartData: [curAqi.pm2_5, curAqi.pm10, curAqi.nitrogen_dioxide, curAqi.ozone], ...analysis
+                };
+                
+                document.getElementById('displayLocation').innerText = activeCityData.name;
+                document.getElementById('displayAqi').innerText = activeCityData.aqi; document.getElementById('displayAqi').style.color = activeCityData.color; 
+                document.getElementById('displayStatus').innerText = activeCityData.status; document.getElementById('displayStatus').style.color = activeCityData.color;
+                document.getElementById('appBox').style.boxShadow = `inset 0 0 250px ${activeCityData.glow}`;
+                
+                const brandBar = document.getElementById('dynamicBrandBar');
+                brandBar.style.backgroundColor = activeCityData.color; brandBar.style.boxShadow = `0 0 15px ${activeCityData.color}`;
+                
+                document.getElementById('diagnosticsBtn').disabled = false; document.getElementById('weatherBtn').disabled = false;
+                
+                if(document.getElementById('diagnosticsModal').classList.contains('open')) renderDiagnostics();
+                if(document.getElementById('weatherModal').classList.contains('open')) renderWeather();
+
+            } catch(e) { console.error("API Error", e); }
+        }
+
+        document.getElementById('diagnosticsBtn').addEventListener('click', () => { openModal('diagnosticsModal'); if(activeCityData) renderDiagnostics(); });
+        document.getElementById('weatherBtn').addEventListener('click', () => { openModal('weatherModal'); if(activeCityData) renderWeather(); });
+
+        let currentBarChart = null; let currentPieChart = null; let currentForecastChart = null;
+
+        function renderDiagnostics() {
+            const data = activeCityData;
+            document.getElementById('diagHeaderStats').innerHTML = `<span class="stat-divider">|</span><span>${data.name.toUpperCase()}</span><span class="stat-divider">|</span><span>AQI: <span class="stat-value" style="color: ${data.color}">${data.aqi}</span></span>`;
+            
+            if (currentBarChart) currentBarChart.destroy();
+            currentBarChart = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: ['PM 2.5', 'PM 10', 'NO2', 'O3'], datasets: [{ data: data.chartData, backgroundColor: data.color, borderRadius: 4, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x:{grid:{display:false}} }, plugins: { legend: { display: false } } } });
+
+            if (currentPieChart) currentPieChart.destroy();
+            currentPieChart = new Chart(document.getElementById('pieChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Vehicles', 'Factories', 'Dust', 'Other'], datasets: [{ data: data.sources, backgroundColor: [data.color, '#ffffff', '#555555', '#222222'], borderWidth: 1, borderColor: '#111' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { color: '#aaa', font: {size: 11} } } } } });
+
+            document.getElementById('telemetryGrid').innerHTML = data.pollutants.map(p => `<div class="data-card"><div class="d-symbol">${p.sym}</div><div class="d-name" title="${p.name}">${p.name}</div><div class="d-val" style="color: ${data.color}">${p.val ? p.val.toFixed(1) : "0.0"}</div><div class="d-unit">${p.unit}</div></div>`).join('');
+        }
+
+        function renderWeather() {
+            const data = activeCityData;
+            document.getElementById('weatherHeaderStats').innerHTML = `<span class="stat-divider">|</span><span>${data.name.toUpperCase()}</span><span class="stat-divider">|</span><span>AQI: <span class="stat-value" style="color: ${data.color}">${data.aqi}</span></span>`;
+            document.getElementById('weatherGrid').innerHTML = `<div class="data-card"><div class="d-symbol">🌡️</div><div class="d-name">Temperature</div><div class="d-val">${data.weather.temp}°C</div></div><div class="data-card"><div class="d-symbol">💧</div><div class="d-name">Humidity</div><div class="d-val">${data.weather.hum}%</div></div><div class="data-card"><div class="d-symbol">💨</div><div class="d-name">Wind Speed</div><div class="d-val">${data.weather.wind} <span class="d-unit">km/h</span></div></div>`;
+            document.getElementById('lifestyleGrid').innerHTML = data.life.map(l => `<div class="life-card"><div class="life-icon">${l.i}</div><div class="life-name">${l.n}</div><div class="life-status" style="color: ${l.c || data.color}">${l.s}</div></div>`).join('');
+
+            if (currentForecastChart) currentForecastChart.destroy();
+            currentForecastChart = new Chart(document.getElementById('forecastChart').getContext('2d'), { type: 'line', data: { labels: data.forecast.labels, datasets: [{ label: 'Predicted AQI', data: data.forecast.data, borderColor: data.color, backgroundColor: data.glow, borderWidth: 3, tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x:{grid:{display:false}} }, plugins: { legend: { display: false } } } });
+        }
+
+        // Initialize application
+        window.onload = () => fetchRealTimeData('New Delhi');
+    </script>
+</body>
+</html>
