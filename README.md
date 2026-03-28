@@ -69,11 +69,11 @@ An interactive, branching timeline visualizing India's atmospheric history from 
 
 ## 👥 The Engineering Team
 
-| Avatar | Name | Role | Student ID |
-| :---: | :--- | :--- | :--- |
-| 👨‍💻 | **Rudra Narayan Mishra** | Lead Developer | `12515636` |
-| 👩‍💻 | **Tashbiha** | UI/UX & Data Engineer | `12517722` |
-| 👨‍💻 | **Amul Kumar Yadav** | Core Logic Integrator | `12511174` |
+| Avatar | Name | Student ID |
+| :---: | :--- | :--- |
+| 👨‍💻 | **Rudra Narayan Mishra** |  `12515636` |
+| 👩‍💻 | **Tashbiha** |`12517722` |
+| 👨‍💻 | **Amul Kumar Yadav** |  `12511174` |
 
 <br>
 
