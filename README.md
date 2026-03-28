@@ -6,7 +6,7 @@ A real-time Air Quality Index (AQI) Visualization Command Center. Built for the 
 
 Built as the CA1 Assignment for **Environmental Studies (CHE110)** at the **School of Computing and AI, Lovely Professional University (LPU)**.
 
-🔗 **[Click Here to View the Live Live Dashboard]** *(Add your GitHub Pages link here later)*
+🔗 **[Click Here to View the Live Dashboard](https://rudranarayanmishra2142.github.io/aqi-visualizer/)**
 🔗 **[Watch our Documentary Video on Instagram](https://www.instagram.com/reel/DWT7WWdEih2/?igsh=amQwdXI0NWJnbjkz)**
 
 ---
